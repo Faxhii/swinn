@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useData } from '../contexts/DataContext';
-import { IndianRupee, TrendingUp, ShoppingBag, Wallet, Package, UserPlus, ShieldCheck, Clock } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { IndianRupee, TrendingUp, ShoppingBag, Wallet, Package } from 'lucide-react';
+import { format } from 'date-fns';
 
 
 const CATEGORY_COLORS = {
@@ -61,48 +61,6 @@ export default function OverviewPage() {
   }, [profiles, expenses]);
 
   const recentExpenses = useMemo(() => expenses.slice(0, 5), [expenses]);
-
-  // Activity feed: merge expense events + profile join/policy events, sorted by date desc
-  const activities = useMemo(() => {
-    const items = [];
-    expenses.slice(0, 8).forEach((e) => {
-      const p = profileMap[e.partner_id];
-      items.push({
-        id: `exp-${e.id}`,
-        type: 'expense',
-        actor: p?.name || 'Unknown',
-        initials: p?.avatar_initials || '?',
-        message: `added a ₹${formatINR(e.amount)} ${e.category} expense`,
-        sub: e.note,
-        date: e.created_at || e.date,
-      });
-    });
-    profiles.forEach((p) => {
-      if (p.joined_at) {
-        items.push({
-          id: `join-${p.id}`,
-          type: 'join',
-          actor: p.name,
-          initials: p.avatar_initials || '?',
-          message: `joined SWIN as ${p.role === 'founder' ? 'a Founder' : 'a Partner'}`,
-          date: p.joined_at,
-        });
-      }
-      if (p.policy_accepted_at) {
-        items.push({
-          id: `policy-${p.id}`,
-          type: 'policy',
-          actor: p.name,
-          initials: p.avatar_initials || '?',
-          message: 'accepted the Partner Policy',
-          date: p.policy_accepted_at,
-        });
-      }
-    });
-    return items
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 10);
-  }, [expenses, profiles, profileMap]);
 
   if (dataLoading) {
     return (
@@ -220,23 +178,6 @@ export default function OverviewPage() {
           </div>
         )}
       </div>
-
-      {/* Activity Feed */}
-      <div style={{ marginTop: 8 }}>
-        <div className="section-header">
-          <h2 className="section-title">Activity Feed</h2>
-          <span className="section-count">{activities.length} events</span>
-        </div>
-        {activities.length === 0 ? (
-          <EmptyState message="No activity yet." />
-        ) : (
-          <div className="activity-feed">
-            {activities.map((item, idx) => (
-              <ActivityItem key={item.id} item={item} isLast={idx === activities.length - 1} />
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -259,43 +200,6 @@ function EmptyState({ message }) {
     <div className="empty-state">
       <Package />
       <p>{message}</p>
-    </div>
-  );
-}
-
-const ACTIVITY_ICONS = {
-  expense: <IndianRupee size={13} />,
-  join:    <UserPlus   size={13} />,
-  policy:  <ShieldCheck size={13} />,
-};
-
-function ActivityItem({ item, isLast }) {
-  let relTime = '';
-  try {
-    relTime = formatDistanceToNow(new Date(item.date), { addSuffix: true });
-  } catch { relTime = ''; }
-
-  return (
-    <div className="activity-item">
-      <div className="activity-left">
-        <div className="avatar avatar-sm">{item.initials}</div>
-        {!isLast && <div className="activity-line" />}
-      </div>
-      <div className="activity-body">
-        <div className="activity-text">
-          <span className="activity-actor">{item.actor}</span>
-          {' '}{item.message}
-        </div>
-        {item.sub && (
-          <div className="activity-sub">{item.sub}</div>
-        )}
-        <div className="activity-time">
-          <Clock size={10} />{relTime}
-        </div>
-      </div>
-      <div className={`activity-type-dot activity-dot-${item.type}`}>
-        {ACTIVITY_ICONS[item.type]}
-      </div>
     </div>
   );
 }

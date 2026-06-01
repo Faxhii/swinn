@@ -28,30 +28,35 @@ export default function ExpensesPage() {
   const { expenses, profiles, profileMap, dataLoading, addExpense, deleteExpense } = useData();
 
   const [showModal, setShowModal] = useState(false);
-  const [deleteId, setDeleteId]   = useState(null);
-  const [deleting, setDeleting]   = useState(false);
+  const [deleteId,  setDeleteId]  = useState(null);
+  const [deleting,  setDeleting]  = useState(false);
 
+  // Simplified filters
   const [filterPartner,  setFilterPartner]  = useState('');
   const [filterCategory, setFilterCategory] = useState('');
-  const [filterFrom,     setFilterFrom]     = useState('');
-  const [filterTo,       setFilterTo]       = useState('');
+  const [filterMonth,    setFilterMonth]    = useState(''); // YYYY-MM
 
   const [form, setForm] = useState({
     amount: '', category: 'Marketing', note: '', date: new Date().toISOString().slice(0, 10),
   });
-  const [formError,   setFormError]   = useState('');
-  const [submitting,  setSubmitting]  = useState(false);
+  const [formError,  setFormError]  = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const filtered = useMemo(() => expenses.filter((e) => {
     if (filterPartner  && e.partner_id !== filterPartner)  return false;
     if (filterCategory && e.category   !== filterCategory) return false;
-    if (filterFrom     && e.date < filterFrom)             return false;
-    if (filterTo       && e.date > filterTo)               return false;
+    if (filterMonth    && !e.date?.startsWith(filterMonth)) return false;
     return true;
-  }), [expenses, filterPartner, filterCategory, filterFrom, filterTo]);
+  }), [expenses, filterPartner, filterCategory, filterMonth]);
 
   const totalFiltered = useMemo(() => filtered.reduce((s, e) => s + (e.amount || 0), 0), [filtered]);
-  const hasFilters = filterPartner || filterCategory || filterFrom || filterTo;
+  const hasFilters = filterPartner || filterCategory || filterMonth;
+
+  function clearFilters() {
+    setFilterPartner('');
+    setFilterCategory('');
+    setFilterMonth('');
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -60,7 +65,6 @@ export default function ExpensesPage() {
     if (!amount || amount <= 0) { setFormError('Enter a valid amount.'); return; }
     if (!form.date)              { setFormError('Select a date.');        return; }
     if (!form.note.trim())       { setFormError('Please add a note.');    return; }
-
     setSubmitting(true);
     try {
       await addExpense({
@@ -79,12 +83,8 @@ export default function ExpensesPage() {
   async function handleDelete() {
     if (!deleteId) return;
     setDeleting(true);
-    try {
-      await deleteExpense(deleteId);
-    } finally {
-      setDeleting(false);
-      setDeleteId(null);
-    }
+    try { await deleteExpense(deleteId); }
+    finally { setDeleting(false); setDeleteId(null); }
   }
 
   if (dataLoading) {
@@ -99,110 +99,130 @@ export default function ExpensesPage() {
 
   return (
     <div className="page-content">
-      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+
+      {/* Header */}
+      <div className="exp-header">
         <div>
           <h1 className="page-title">Expenses</h1>
           <p className="page-subtitle">Track and manage all partner expenses</p>
         </div>
         <button id="btn-add-expense" className="btn btn-primary"
           onClick={() => { setShowModal(true); setFormError(''); }}>
-          <Plus size={16} />Add Expense
+          <Plus size={16} />Add
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="filters-row">
-        <div className="filter-group">
-          <label className="filter-label" htmlFor="filter-partner">Partner</label>
-          <select id="filter-partner" className="filter-select" value={filterPartner}
-            onChange={(e) => setFilterPartner(e.target.value)}>
-            <option value="">All Partners</option>
-            {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label className="filter-label" htmlFor="filter-category">Category</label>
-          <select id="filter-category" className="filter-select" value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}>
-            <option value="">All Categories</option>
-            {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label className="filter-label" htmlFor="filter-from">From</label>
-          <input id="filter-from" type="date" className="filter-input" value={filterFrom}
-            onChange={(e) => setFilterFrom(e.target.value)} />
-        </div>
-        <div className="filter-group">
-          <label className="filter-label" htmlFor="filter-to">To</label>
-          <input id="filter-to" type="date" className="filter-input" value={filterTo}
-            onChange={(e) => setFilterTo(e.target.value)} />
-        </div>
+      {/* Simplified filters */}
+      <div className="exp-filters">
+        <select id="filter-partner" className="filter-select" value={filterPartner}
+          onChange={(e) => setFilterPartner(e.target.value)}>
+          <option value="">All Partners</option>
+          {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+
+        <select id="filter-category" className="filter-select" value={filterCategory}
+          onChange={(e) => setFilterCategory(e.target.value)}>
+          <option value="">All Categories</option>
+          {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+        </select>
+
+        <input id="filter-month" type="month" className="filter-select" value={filterMonth}
+          onChange={(e) => setFilterMonth(e.target.value)} />
+
         {hasFilters && (
-          <div className="filter-group" style={{ justifyContent: 'flex-end' }}>
-            <label className="filter-label" style={{ visibility: 'hidden' }}>Clear</label>
-            <button id="btn-clear-filters" className="btn btn-secondary"
-              onClick={() => { setFilterPartner(''); setFilterCategory(''); setFilterFrom(''); setFilterTo(''); }}>
-              <X size={14} />Clear
-            </button>
-          </div>
+          <button id="btn-clear-filters" className="btn btn-secondary" onClick={clearFilters}
+            style={{ gap: 6 }}>
+            <X size={13} />Clear
+          </button>
         )}
       </div>
 
-      {/* Total bar */}
-      <div className="total-bar">
-        <span className="total-bar-label">
-          {hasFilters ? `Filtered Total (${filtered.length} of ${expenses.length})` : 'Total Expenses'}
+      {/* Total */}
+      <div className="exp-total-bar">
+        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+          {hasFilters ? `Filtered (${filtered.length} of ${expenses.length})` : `Total · ${expenses.length} entries`}
         </span>
-        <span className="total-bar-value">₹{formatINR(totalFiltered)}</span>
+        <span style={{ fontSize: 20, fontWeight: 700 }}>₹{formatINR(totalFiltered)}</span>
       </div>
 
-      {/* Table */}
+      {/* Expense list */}
       {filtered.length === 0 ? (
-        <div className="table-wrapper">
-          <div className="empty-state">
-            <IndianRupee />
-            <p>No expenses found.{hasFilters ? ' Try clearing filters.' : ' Add your first expense.'}</p>
-          </div>
+        <div className="empty-state" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)' }}>
+          <IndianRupee />
+          <p>{hasFilters ? 'No expenses match your filters.' : 'No expenses yet. Add the first one!'}</p>
         </div>
       ) : (
-        <div className="table-wrapper">
-          <table className="expense-table">
-            <thead>
-              <tr>
-                <th>Partner</th><th>Amount</th><th>Category</th><th>Note</th><th>Date</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((expense, idx) => {
-                const p     = profileMap[expense.partner_id];
-                const isOwn = expense.partner_id === user?.id;
-                return (
-                  <tr key={expense.id} id={`expense-row-${idx}`}>
-                    <td>
-                      <div className="table-partner">
-                        <div className="avatar avatar-sm">{p?.avatar_initials || '?'}</div>
-                        <span>{p?.name || 'Unknown'}</span>
-                      </div>
-                    </td>
-                    <td><strong>₹{formatINR(expense.amount)}</strong></td>
-                    <td><span className={BADGE_CLASS[expense.category] || 'badge badge-other'}>{expense.category}</span></td>
-                    <td style={{ color: 'var(--text-secondary)', maxWidth: 240 }}>{expense.note || '—'}</td>
-                    <td style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{formatDate(expense.date)}</td>
-                    <td>
+        <>
+          {/* Desktop table */}
+          <div className="table-wrapper exp-table-desktop">
+            <table className="expense-table">
+              <thead>
+                <tr>
+                  <th>Partner</th><th>Amount</th><th>Category</th><th>Note</th><th>Date</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((expense, idx) => {
+                  const p     = profileMap[expense.partner_id];
+                  const isOwn = expense.partner_id === user?.id;
+                  return (
+                    <tr key={expense.id} id={`expense-row-${idx}`}>
+                      <td>
+                        <div className="table-partner">
+                          <div className="avatar avatar-sm">{p?.avatar_initials || '?'}</div>
+                          <span>{p?.name || 'Unknown'}</span>
+                        </div>
+                      </td>
+                      <td><strong>₹{formatINR(expense.amount)}</strong></td>
+                      <td><span className={BADGE_CLASS[expense.category] || 'badge badge-other'}>{expense.category}</span></td>
+                      <td style={{ color: 'var(--text-secondary)', maxWidth: 200 }}>{expense.note || '—'}</td>
+                      <td style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{formatDate(expense.date)}</td>
+                      <td>
+                        {isOwn && (
+                          <button className="btn-icon-danger" title="Delete"
+                            onClick={() => setDeleteId(expense.id)}>
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="exp-cards-mobile">
+            {filtered.map((expense) => {
+              const p     = profileMap[expense.partner_id];
+              const isOwn = expense.partner_id === user?.id;
+              return (
+                <div key={expense.id} className="exp-card">
+                  <div className="exp-card-top">
+                    <div className="table-partner">
+                      <div className="avatar avatar-sm">{p?.avatar_initials || '?'}</div>
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>{p?.name || 'Unknown'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <strong style={{ fontSize: 16 }}>₹{formatINR(expense.amount)}</strong>
                       {isOwn && (
-                        <button id={`btn-delete-expense-${idx}`} className="btn-icon-danger"
-                          title="Delete this expense" onClick={() => setDeleteId(expense.id)}>
-                          <Trash2 size={15} />
+                        <button className="btn-icon-danger" onClick={() => setDeleteId(expense.id)}>
+                          <Trash2 size={13} />
                         </button>
                       )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </div>
+                  </div>
+                  <div className="exp-card-bottom">
+                    <span className={BADGE_CLASS[expense.category] || 'badge badge-other'}>{expense.category}</span>
+                    {expense.note && <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{expense.note}</span>}
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatDate(expense.date)}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {/* Add Expense Modal */}
@@ -210,11 +230,8 @@ export default function ExpensesPage() {
         <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700 }}>Add Expense</h2>
-              <button id="btn-close-modal" onClick={() => setShowModal(false)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}>
-                <X size={20} />
-              </button>
+              <h2 style={{ fontSize: 17, fontWeight: 700 }}>Add Expense</h2>
+              <button onClick={() => setShowModal(false)} className="icon-btn"><X size={18} /></button>
             </div>
             <div style={{ marginBottom: 14, padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', fontSize: 13, color: 'var(--text-secondary)' }}>
               Adding as: <strong style={{ color: 'var(--text-primary)' }}>{profile?.name}</strong>
@@ -223,8 +240,9 @@ export default function ExpensesPage() {
             <form onSubmit={handleSubmit} id="add-expense-form">
               <div className="form-group">
                 <label className="form-label" htmlFor="expense-amount">Amount (₹)</label>
-                <input id="expense-amount" type="number" className="form-input" placeholder="0" min="1" step="0.01"
-                  value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
+                <input id="expense-amount" type="number" className="form-input" placeholder="0"
+                  min="1" step="0.01" value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="expense-category">Category</label>
@@ -235,7 +253,7 @@ export default function ExpensesPage() {
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="expense-note">Note</label>
-                <textarea id="expense-note" className="form-textarea" placeholder="What was this money used for?"
+                <textarea id="expense-note" className="form-textarea" placeholder="What was this for?"
                   value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} required />
               </div>
               <div className="form-group">
@@ -246,12 +264,11 @@ export default function ExpensesPage() {
               {parseFloat(form.amount) > 10000 && (
                 <div style={{ display: 'flex', gap: 8, padding: '10px 12px', background: 'var(--amber-bg)', borderRadius: 'var(--radius-sm)', fontSize: 12, color: 'var(--amber)', marginBottom: 12 }}>
                   <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-                  Per policy, expenses above ₹10,000 require approval from at least one other partner.
+                  Expenses above ₹10,000 require approval from another partner.
                 </div>
               )}
               <div className="modal-actions">
-                <button id="btn-cancel-expense" type="button" className="btn btn-secondary"
-                  onClick={() => setShowModal(false)}>Cancel</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
                 <button id="btn-submit-expense" type="submit" className="btn btn-primary"
                   disabled={submitting} style={{ flex: 1, justifyContent: 'center' }}>
                   {submitting ? <span className="spinner" /> : 'Add Expense'}
@@ -265,18 +282,18 @@ export default function ExpensesPage() {
       {/* Delete confirm modal */}
       {deleteId && (
         <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setDeleteId(null)}>
-          <div className="modal" style={{ maxWidth: 380 }}>
+          <div className="modal" style={{ maxWidth: 360 }}>
             <div style={{ textAlign: 'center', padding: '8px 0 20px' }}>
-              <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--red-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                <Trash2 size={22} style={{ color: 'var(--red)' }} />
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--red-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                <Trash2 size={20} style={{ color: 'var(--red)' }} />
               </div>
-              <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 8 }}>Delete Expense?</div>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Delete Expense?</div>
               <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>This action cannot be undone.</p>
             </div>
             <div className="modal-actions">
-              <button id="btn-cancel-delete" className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}
+              <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }}
                 onClick={() => setDeleteId(null)}>Cancel</button>
-              <button id="btn-confirm-delete" className="btn btn-danger" style={{ flex: 1, justifyContent: 'center' }}
+              <button className="btn btn-danger" style={{ flex: 1, justifyContent: 'center' }}
                 onClick={handleDelete} disabled={deleting}>
                 {deleting ? <span className="spinner" /> : 'Delete'}
               </button>
