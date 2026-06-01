@@ -8,8 +8,10 @@ const ICONS = {
 };
 
 export default function ToastContainer() {
-  const { toasts, removeToast } = useData();
-  if (!toasts.length) return null;
+  const data = useData();
+  // Render nothing if DataProvider is not mounted yet (e.g. policy gate)
+  if (!data || !data.toasts.length) return null;
+  const { toasts, removeToast } = data;
 
   return (
     <div className="toast-container">

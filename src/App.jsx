@@ -14,6 +14,7 @@ function AppInner() {
   const { user, loading, policyAccepted } = useAuth();
   const [activePage, setActivePage] = useState('overview');
 
+  // 1. Auth still loading
   if (loading) {
     return (
       <div className="loading-screen">
@@ -29,28 +30,30 @@ function AppInner() {
     );
   }
 
+  // 2. Not logged in
   if (!user) return <AuthPage />;
 
-  // Force policy page until accepted
-  if (!policyAccepted) {
-    return (
-      <AppLayout activePage="policy" onNavigate={() => {}}>
-        <PolicyPage onAccepted={() => setActivePage('overview')} />
-      </AppLayout>
-    );
-  }
-
+  // 3. Logged in — DataProvider is ALWAYS mounted here so AppLayout's
+  //    ToastContainer never crashes (DataContext always available)
   return (
     <DataProvider>
-      <AppLayout activePage={activePage} onNavigate={setActivePage}>
-        <div key={activePage} className="page-fade">
-          {activePage === 'overview'  && <OverviewPage />}
-          {activePage === 'sales'     && <SalesPage />}
-          {activePage === 'expenses'  && <ExpensesPage />}
-          {activePage === 'partners'  && <PartnersPage />}
-          {activePage === 'policy'    && <PolicyPage />}
-        </div>
-      </AppLayout>
+      {!policyAccepted ? (
+        // Force policy page for new users who haven't accepted yet
+        <AppLayout activePage="policy" onNavigate={() => {}}>
+          <PolicyPage onAccepted={() => setActivePage('overview')} />
+        </AppLayout>
+      ) : (
+        // Full dashboard
+        <AppLayout activePage={activePage} onNavigate={setActivePage}>
+          <div key={activePage} className="page-fade">
+            {activePage === 'overview'  && <OverviewPage />}
+            {activePage === 'sales'     && <SalesPage />}
+            {activePage === 'expenses'  && <ExpensesPage />}
+            {activePage === 'partners'  && <PartnersPage />}
+            {activePage === 'policy'    && <PolicyPage />}
+          </div>
+        </AppLayout>
+      )}
     </DataProvider>
   );
 }
