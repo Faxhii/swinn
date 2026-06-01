@@ -1807,10 +1807,12 @@ body {
   margin-bottom: 16px;
 }
 
-.exp-filters .filter-select {
-  flex: 1;
+/* Each filter input/select: fixed compact size */
+.exp-filter {
+  flex: 1 1 140px;
   min-width: 130px;
   max-width: 200px;
+  margin-bottom: 0 !important;  /* override form-group default */
 }
 
 /* Total bar */
@@ -1865,9 +1867,9 @@ body {
 
 /* Switch to cards on mobile */
 @media (max-width: 768px) {
-  .exp-filters .filter-select {
+  .exp-filter {
     min-width: 0;
-    flex: 1 1 140px;
+    flex: 1 1 130px;
     max-width: 100%;
   }
 
@@ -1890,10 +1892,11 @@ body {
     gap: 8px;
   }
 
-  .exp-filters .filter-select,
+  .exp-filter,
   .exp-filters .btn {
     width: 100%;
     max-width: 100%;
+    flex: none;
   }
 
   .exp-total-bar {

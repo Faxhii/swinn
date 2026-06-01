@@ -114,24 +114,24 @@ export default function ExpensesPage() {
 
       {/* Simplified filters */}
       <div className="exp-filters">
-        <select id="filter-partner" className="filter-select" value={filterPartner}
+        <select id="filter-partner" className="form-select exp-filter" value={filterPartner}
           onChange={(e) => setFilterPartner(e.target.value)}>
           <option value="">All Partners</option>
           {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
 
-        <select id="filter-category" className="filter-select" value={filterCategory}
+        <select id="filter-category" className="form-select exp-filter" value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}>
           <option value="">All Categories</option>
           {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
         </select>
 
-        <input id="filter-month" type="month" className="filter-select" value={filterMonth}
-          onChange={(e) => setFilterMonth(e.target.value)} />
+        <input id="filter-month" type="month" className="form-input exp-filter" value={filterMonth}
+          onChange={(e) => setFilterMonth(e.target.value)} placeholder="Month" />
 
         {hasFilters && (
           <button id="btn-clear-filters" className="btn btn-secondary" onClick={clearFilters}
-            style={{ gap: 6 }}>
+            style={{ gap: 6, flexShrink: 0 }}>
             <X size={13} />Clear
           </button>
         )}
@@ -158,7 +158,7 @@ export default function ExpensesPage() {
             <table className="expense-table">
               <thead>
                 <tr>
-                  <th>Partner</th><th>Amount</th><th>Category</th><th>Note</th><th>Date</th><th></th>
+                  <th>Partner</th><th>Amount</th><th>Category</th><th>Note</th><th>Date</th>
                 </tr>
               </thead>
               <tbody>
@@ -176,14 +176,16 @@ export default function ExpensesPage() {
                       <td><strong>₹{formatINR(expense.amount)}</strong></td>
                       <td><span className={BADGE_CLASS[expense.category] || 'badge badge-other'}>{expense.category}</span></td>
                       <td style={{ color: 'var(--text-secondary)', maxWidth: 200 }}>{expense.note || '—'}</td>
-                      <td style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{formatDate(expense.date)}</td>
-                      <td>
-                        {isOwn && (
-                          <button className="btn-icon-danger" title="Delete"
-                            onClick={() => setDeleteId(expense.id)}>
-                            <Trash2 size={14} />
-                          </button>
-                        )}
+                      <td style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                          <span>{formatDate(expense.date)}</span>
+                          {isOwn && (
+                            <button className="btn-icon-danger" title="Delete"
+                              onClick={() => setDeleteId(expense.id)}>
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
