@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { format } from 'date-fns';
 import { POLICY_VERSION, POLICY_UPDATED, POLICY_SECTIONS, POLICY_FOOTER } from '../lib/policyText';
@@ -6,19 +6,10 @@ import { ShieldCheck, CheckCircle } from 'lucide-react';
 
 export default function PolicyPage({ onAccepted }) {
   const { profile, acceptPolicy } = useAuth();
-  const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const [accepting, setAccepting] = useState(false);
-  const [error, setError] = useState('');
-  const contentRef = useRef(null);
+  const [error,     setError]     = useState('');
 
   const alreadyAccepted = profile?.policy_accepted === true;
-
-  function handleScroll() {
-    const el = contentRef.current;
-    if (!el) return;
-    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 40;
-    if (atBottom) setScrolledToBottom(true);
-  }
 
   async function handleAccept() {
     setError('');
@@ -41,7 +32,8 @@ export default function PolicyPage({ onAccepted }) {
       </div>
 
       <div className="policy-card">
-        {/* Policy header */}
+
+        {/* Policy document header */}
         <div className="policy-doc-header">
           <div className="policy-doc-title">SWIN PARTNER POLICY</div>
           <div className="policy-meta-row">
@@ -56,16 +48,13 @@ export default function PolicyPage({ onAccepted }) {
             </span>
           </div>
           <p className="policy-intro">
-            This policy applies to all founding and active partners of SWIN. By accessing this dashboard you agree to the following terms.
+            This policy applies to all founding and active partners of SWIN.
+            By accessing this dashboard you agree to the following terms.
           </p>
         </div>
 
-        {/* Scrollable content */}
-        <div
-          ref={contentRef}
-          onScroll={handleScroll}
-          className={`policy-body ${alreadyAccepted ? 'policy-body-tall' : ''}`}
-        >
+        {/* Policy content — flows naturally, NO inner scroll box */}
+        <div className="policy-body">
           {POLICY_SECTIONS.map((section) => (
             <div key={section.number} className="policy-section">
               <div className="policy-section-title">
@@ -77,7 +66,7 @@ export default function PolicyPage({ onAccepted }) {
           <div className="policy-footer-text">{POLICY_FOOTER}</div>
         </div>
 
-        {/* Accept footer */}
+        {/* Accept / Already accepted bar */}
         <div className="policy-action-bar">
           {alreadyAccepted ? (
             <div className="policy-accepted-banner">
@@ -93,16 +82,13 @@ export default function PolicyPage({ onAccepted }) {
             </div>
           ) : (
             <>
-              {!scrolledToBottom && (
-                <p className="policy-scroll-hint">↓ Scroll to the bottom to enable the Accept button</p>
-              )}
               {error && <div className="auth-error" style={{ marginBottom: 12 }}>{error}</div>}
               <button
                 id="btn-accept-policy"
                 className="btn btn-primary w-full"
                 style={{ justifyContent: 'center' }}
-                disabled={!scrolledToBottom || accepting}
                 onClick={handleAccept}
+                disabled={accepting}
               >
                 {accepting ? <span className="spinner" /> : (
                   <>
@@ -114,6 +100,7 @@ export default function PolicyPage({ onAccepted }) {
             </>
           )}
         </div>
+
       </div>
     </div>
   );

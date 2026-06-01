@@ -1106,8 +1106,7 @@ body {
   }
 
   .policy-body {
-    padding: 0 20px;
-    max-height: 340px;
+    padding: 0 20px 8px;
   }
 
   .policy-action-bar {
@@ -1488,13 +1487,8 @@ body {
 }
 
 .policy-body {
-  padding: 0 32px;
-  max-height: 420px;
-  overflow-y: auto;
-}
-
-.policy-body-tall {
-  max-height: 520px;
+  padding: 0 32px 8px;
+  /* No max-height — content flows naturally with the page */
 }
 
 .policy-section {
