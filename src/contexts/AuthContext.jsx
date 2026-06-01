@@ -1,28 +1,36 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user,    setUser]    = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        setUser(session?.user ?? null);
-        if (session?.user) fetchProfile(session.user.id);
-        else setLoading(false);
-      })
-      .catch(() => setLoading(false)); // never stay stuck if getSession fails
+  // Track the last user ID we fetched a profile for — prevents duplicate fetches
+  const fetchedForIdRef = useRef(null);
 
+  useEffect(() => {
+    // onAuthStateChange fires IMMEDIATELY with the stored session on page load
+    // (event = 'INITIAL_SESSION'). No need for a separate getSession() call.
+    // Using both getSession + onAuthStateChange was the cause of the double-fetch loop.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchProfile(session.user.id);
+      async (event, session) => {
+        const incomingUser = session?.user ?? null;
+        setUser(incomingUser);
+
+        if (incomingUser) {
+          // Only fetch profile if the user actually changed
+          if (fetchedForIdRef.current !== incomingUser.id) {
+            fetchedForIdRef.current = incomingUser.id;
+            await fetchProfile(incomingUser.id);
+          } else {
+            // Same user — just make sure loading is cleared
+            setLoading(false);
+          }
         } else {
+          fetchedForIdRef.current = null;
           setProfile(null);
           setLoading(false);
         }
@@ -43,7 +51,7 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.warn('fetchProfile error:', err);
     } finally {
-      setLoading(false); // always unblock the loading screen
+      setLoading(false);
     }
   }
 
@@ -69,8 +77,6 @@ export function AuthProvider({ children }) {
       .toUpperCase()
       .slice(0, 2);
 
-    // Pass name + initials as metadata so the DB trigger can create the profile
-    // even when email confirmation is enabled (no active session yet).
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -80,8 +86,7 @@ export function AuthProvider({ children }) {
     });
     if (error) throw error;
 
-    // If email confirmation is OFF, a session is returned immediately.
-    // Try an upsert so the profile exists (trigger may have already created it).
+    // If email confirmation is OFF, session is returned immediately — upsert profile
     if (data.session && data.user) {
       await supabase.from('profiles').upsert({
         id: data.user.id,
@@ -102,6 +107,7 @@ export function AuthProvider({ children }) {
   }
 
   async function signOut() {
+    fetchedForIdRef.current = null;
     await supabase.auth.signOut();
   }
 
@@ -109,12 +115,8 @@ export function AuthProvider({ children }) {
     if (!user) return;
     const now = new Date().toISOString();
 
-    // Optimistically update local state immediately — UI unlocks instantly.
-    setProfile((prev) => ({
-      ...prev,
-      policy_accepted: true,
-      policy_accepted_at: now,
-    }));
+    // Optimistic update — unlock dashboard instantly
+    setProfile((prev) => ({ ...prev, policy_accepted: true, policy_accepted_at: now }));
 
     try {
       const { error } = await supabase
@@ -123,12 +125,8 @@ export function AuthProvider({ children }) {
         .eq('id', user.id);
       if (error) throw error;
     } catch (err) {
-      // Revert optimistic update if DB write failed
-      setProfile((prev) => ({
-        ...prev,
-        policy_accepted: false,
-        policy_accepted_at: null,
-      }));
+      // Revert on failure
+      setProfile((prev) => ({ ...prev, policy_accepted: false, policy_accepted_at: null }));
       throw err;
     }
   }

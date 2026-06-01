@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
@@ -7,14 +7,16 @@ const DataContext = createContext(null);
 export function DataProvider({ children }) {
   const { user, policyAccepted } = useAuth();
 
-  const [profiles, setProfiles]       = useState([]);
-  const [orders, setOrders]           = useState([]);
-  const [expenses, setExpenses]       = useState([]);
+  const [profiles,    setProfiles]    = useState([]);
+  const [orders,      setOrders]      = useState([]);
+  const [expenses,    setExpenses]    = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
-  const [dataReady, setDataReady]     = useState(false);
-  const [toasts, setToasts]           = useState([]);
+  const [dataReady,   setDataReady]   = useState(false);
+  const [toasts,      setToasts]      = useState([]);
 
-  // Keep a live ref to profiles so realtime callbacks can read current names
+  // Prevent re-fetching when user object reference changes but ID hasn't changed
+  const fetchedForIdRef  = useRef(null);
+  // Keep live reference to profiles for realtime callbacks
   const profilesRef = useRef([]);
   useEffect(() => { profilesRef.current = profiles; }, [profiles]);
 
@@ -30,8 +32,9 @@ export function DataProvider({ children }) {
   }, []);
 
   // ── Initial data fetch ─────────────────────────────────────────
-  const fetchAll = useCallback(async () => {
-    if (!user) return;
+  // Defined WITHOUT user in deps — we pass userId explicitly to avoid re-creation on user ref change
+  const fetchAll = useCallback(async (userId) => {
+    if (!userId) return;
     setDataLoading(true);
     const [profilesRes, ordersRes, expensesRes] = await Promise.all([
       supabase
@@ -51,15 +54,22 @@ export function DataProvider({ children }) {
     setExpenses(expensesRes.data  || []);
     setDataLoading(false);
     setDataReady(true);
-  }, [user]);
+  }, []); // ← no deps: stable reference forever
 
   useEffect(() => {
-    if (user && policyAccepted) fetchAll();
-  }, [user, policyAccepted, fetchAll]);
+    const uid = user?.id;
+    if (!uid || !policyAccepted) return;
+
+    // Only fetch if this is a new user ID (prevents loops from object reference changes)
+    if (fetchedForIdRef.current === uid) return;
+    fetchedForIdRef.current = uid;
+
+    fetchAll(uid);
+  }, [user?.id, policyAccepted, fetchAll]);
 
   // ── Supabase Realtime – live expense sync ──────────────────────
   useEffect(() => {
-    if (!user || !policyAccepted || !dataReady) return;
+    if (!user?.id || !policyAccepted || !dataReady) return;
 
     const channel = supabase
       .channel('swin-expenses-live')
@@ -69,15 +79,12 @@ export function DataProvider({ children }) {
         (payload) => {
           const incoming = payload.new;
           setExpenses((prev) => {
-            if (prev.find((e) => e.id === incoming.id)) return prev; // dedup
+            if (prev.find((e) => e.id === incoming.id)) return prev;
             return [incoming, ...prev];
           });
-          // Only notify for OTHER partners' additions
           if (incoming.partner_id !== user.id) {
-            const name =
-              profilesRef.current.find((p) => p.id === incoming.partner_id)?.name ||
-              'A partner';
-            const amt = Number(incoming.amount).toLocaleString('en-IN');
+            const name = profilesRef.current.find((p) => p.id === incoming.partner_id)?.name || 'A partner';
+            const amt  = Number(incoming.amount).toLocaleString('en-IN');
             addToast(`${name} added a ₹${amt} ${incoming.category} expense`, 'expense');
           }
         }
@@ -92,7 +99,7 @@ export function DataProvider({ children }) {
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [user, policyAccepted, dataReady, addToast]);
+  }, [user?.id, policyAccepted, dataReady, addToast]);
 
   // ── Optimistic mutations ───────────────────────────────────────
   async function addExpense(expense) {
@@ -109,12 +116,11 @@ export function DataProvider({ children }) {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
     const { error } = await supabase.from('expenses').delete().eq('id', id);
     if (error) {
-      await fetchAll(); // revert on failure
+      fetchAll(user.id);
       throw error;
     }
   }
 
-  // ── Derived ────────────────────────────────────────────────────
   const profileMap = Object.fromEntries(profiles.map((p) => [p.id, p]));
 
   return (
@@ -124,7 +130,10 @@ export function DataProvider({ children }) {
         profileMap,
         dataLoading, dataReady,
         addExpense, deleteExpense,
-        refreshData: fetchAll,
+        refreshData: () => {
+          fetchedForIdRef.current = null; // allow a manual re-fetch
+          fetchAll(user?.id);
+        },
         toasts, addToast, removeToast,
       }}
     >
