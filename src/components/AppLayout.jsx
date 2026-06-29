@@ -1,6 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import ProfileSettingsModal from './ProfileSettingsModal';
+import { useState } from 'react';
 import ToastContainer from './ToastContainer';
 import {
   LayoutDashboard,
@@ -10,9 +8,6 @@ import {
   ShieldCheck,
   Menu,
   X,
-  LogOut,
-  ChevronDown,
-  Settings,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -32,21 +27,7 @@ const PAGE_TITLES = {
 };
 
 export default function AppLayout({ activePage, onNavigate, children }) {
-  const { profile, signOut } = useAuth();
-  const [sidebarOpen,  setSidebarOpen]  = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="app-layout">
@@ -92,52 +73,15 @@ export default function AppLayout({ activePage, onNavigate, children }) {
             <span className="topbar-title">{PAGE_TITLES[activePage]}</span>
           </div>
 
-          <div className="topbar-right">
-            <div className="user-chip" ref={dropdownRef} onClick={() => setDropdownOpen(!dropdownOpen)}>
-              <div className="avatar avatar-sm">{profile?.avatar_initials || '?'}</div>
-              <div className="user-chip-info">
-                <span className="user-chip-name">{profile?.name || 'Partner'}</span>
-                <span className="user-chip-role">{profile?.role === 'founder' ? 'Founder' : 'Partner'}</span>
-              </div>
-              <ChevronDown size={14} style={{ color: 'var(--text-muted)', marginLeft: 2 }} />
-
-              {dropdownOpen && (
-                <div className="dropdown-menu">
-                  <div style={{ padding: '8px 12px 10px', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{profile?.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{profile?.email}</div>
-                  </div>
-
-                  {/* Settings */}
-                  <button
-                    id="btn-open-settings"
-                    className="dropdown-item"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDropdownOpen(false);
-                      setShowSettings(true);
-                    }}
-                  >
-                    <Settings size={14} />
-                    Profile Settings
-                  </button>
-
-                  <button id="btn-nav-policy" className="dropdown-item"
-                    onClick={(e) => { e.stopPropagation(); setDropdownOpen(false); onNavigate('policy'); }}>
-                    <ShieldCheck size={14} />
-                    View Policy
-                  </button>
-
-                  <div className="divider" />
-
-                  <button id="btn-sign-out" className="dropdown-item danger"
-                    onClick={async (e) => { e.stopPropagation(); await signOut(); }}>
-                    <LogOut size={14} />
-                    Sign Out
-                  </button>
-                </div>
-              )}
-            </div>
+          {/* Simple branding badge — no login required */}
+          <div style={{
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: '0.15em',
+            color: 'var(--text-muted)',
+            textTransform: 'uppercase',
+          }}>
+            SWIN
           </div>
         </header>
 
@@ -145,11 +89,6 @@ export default function AppLayout({ activePage, onNavigate, children }) {
           {children}
         </div>
       </div>
-
-      {/* Profile Settings Modal */}
-      {showSettings && (
-        <ProfileSettingsModal onClose={() => setShowSettings(false)} />
-      )}
 
       {/* Live toast notifications */}
       <ToastContainer />

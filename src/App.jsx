@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
-import AuthPage from './pages/AuthPage';
 import AppLayout from './components/AppLayout';
 import OverviewPage from './pages/OverviewPage';
 import SalesPage from './pages/SalesPage';
@@ -11,11 +10,11 @@ import PolicyPage from './pages/PolicyPage';
 import './index.css';
 
 function AppInner() {
-  const { user, loading, policyAccepted } = useAuth();
+  const { ready } = useAuth();
   const [activePage, setActivePage] = useState('overview');
 
-  // 1. Auth still loading
-  if (loading) {
+  // Wait for silent auto-login to complete
+  if (!ready) {
     return (
       <div className="loading-screen">
         <div>
@@ -30,30 +29,18 @@ function AppInner() {
     );
   }
 
-  // 2. Not logged in
-  if (!user) return <AuthPage />;
-
-  // 3. Logged in — DataProvider is ALWAYS mounted here so AppLayout's
-  //    ToastContainer never crashes (DataContext always available)
+  // Go straight to dashboard — no login, no policy gate
   return (
     <DataProvider>
-      {!policyAccepted ? (
-        // Force policy page for new users who haven't accepted yet
-        <AppLayout activePage="policy" onNavigate={() => {}}>
-          <PolicyPage onAccepted={() => setActivePage('overview')} />
-        </AppLayout>
-      ) : (
-        // Full dashboard
-        <AppLayout activePage={activePage} onNavigate={setActivePage}>
-          <div key={activePage} className="page-fade">
-            {activePage === 'overview'  && <OverviewPage />}
-            {activePage === 'sales'     && <SalesPage />}
-            {activePage === 'expenses'  && <ExpensesPage />}
-            {activePage === 'partners'  && <PartnersPage />}
-            {activePage === 'policy'    && <PolicyPage />}
-          </div>
-        </AppLayout>
-      )}
+      <AppLayout activePage={activePage} onNavigate={setActivePage}>
+        <div key={activePage} className="page-fade">
+          {activePage === 'overview'  && <OverviewPage />}
+          {activePage === 'sales'     && <SalesPage />}
+          {activePage === 'expenses'  && <ExpensesPage />}
+          {activePage === 'partners'  && <PartnersPage />}
+          {activePage === 'policy'    && <PolicyPage />}
+        </div>
+      </AppLayout>
     </DataProvider>
   );
 }

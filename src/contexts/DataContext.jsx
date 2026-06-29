@@ -1,12 +1,9 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from './AuthContext';
 
 const DataContext = createContext(null);
 
 export function DataProvider({ children }) {
-  const { user, policyAccepted } = useAuth();
-
   const [profiles,    setProfiles]    = useState([]);
   const [orders,      setOrders]      = useState([]);
   const [expenses,    setExpenses]    = useState([]);
@@ -14,8 +11,8 @@ export function DataProvider({ children }) {
   const [dataReady,   setDataReady]   = useState(false);
   const [toasts,      setToasts]      = useState([]);
 
-  // Prevent re-fetching when user object reference changes but ID hasn't changed
-  const fetchedForIdRef  = useRef(null);
+  const hasFetchedRef = useRef(false);
+
   // Keep live reference to profiles for realtime callbacks
   const profilesRef = useRef([]);
   useEffect(() => { profilesRef.current = profiles; }, [profiles]);
@@ -32,9 +29,7 @@ export function DataProvider({ children }) {
   }, []);
 
   // ── Initial data fetch ─────────────────────────────────────────
-  // Defined WITHOUT user in deps — we pass userId explicitly to avoid re-creation on user ref change
-  const fetchAll = useCallback(async (userId) => {
-    if (!userId) return;
+  const fetchAll = useCallback(async () => {
     setDataLoading(true);
     const [profilesRes, ordersRes, expensesRes] = await Promise.all([
       supabase
@@ -54,22 +49,18 @@ export function DataProvider({ children }) {
     setExpenses(expensesRes.data  || []);
     setDataLoading(false);
     setDataReady(true);
-  }, []); // ← no deps: stable reference forever
+  }, []);
 
+  // Fetch once on mount (auth is handled by AuthProvider auto-login)
   useEffect(() => {
-    const uid = user?.id;
-    if (!uid || !policyAccepted) return;
-
-    // Only fetch if this is a new user ID (prevents loops from object reference changes)
-    if (fetchedForIdRef.current === uid) return;
-    fetchedForIdRef.current = uid;
-
-    fetchAll(uid);
-  }, [user?.id, policyAccepted, fetchAll]);
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+    fetchAll();
+  }, [fetchAll]);
 
   // ── Supabase Realtime – live expense sync ──────────────────────
   useEffect(() => {
-    if (!user?.id || !policyAccepted || !dataReady) return;
+    if (!dataReady) return;
 
     const channel = supabase
       .channel('swin-expenses-live')
@@ -82,11 +73,10 @@ export function DataProvider({ children }) {
             if (prev.find((e) => e.id === incoming.id)) return prev;
             return [incoming, ...prev];
           });
-          if (incoming.partner_id !== user.id) {
-            const name = profilesRef.current.find((p) => p.id === incoming.partner_id)?.name || 'A partner';
-            const amt  = Number(incoming.amount).toLocaleString('en-IN');
-            addToast(`${name} added a ₹${amt} ${incoming.category} expense`, 'expense');
-          }
+          // Show toast for all new expenses
+          const name = profilesRef.current.find((p) => p.id === incoming.partner_id)?.name || 'A partner';
+          const amt  = Number(incoming.amount).toLocaleString('en-IN');
+          addToast(`${name} added a ₹${amt} ${incoming.category} expense`, 'expense');
         }
       )
       .on(
@@ -99,7 +89,7 @@ export function DataProvider({ children }) {
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [user?.id, policyAccepted, dataReady, addToast]);
+  }, [dataReady, addToast]);
 
   // ── Optimistic mutations ───────────────────────────────────────
   async function addExpense(expense) {
@@ -116,13 +106,12 @@ export function DataProvider({ children }) {
     setExpenses((prev) => prev.filter((e) => e.id !== id));
     const { error } = await supabase.from('expenses').delete().eq('id', id);
     if (error) {
-      fetchAll(user.id);
+      fetchAll();
       throw error;
     }
   }
 
   // useMemo prevents profileMap from being a new object reference on every render
-  // (e.g. when toasts update), which was causing all consumer pages to re-render.
   const profileMap = useMemo(
     () => Object.fromEntries(profiles.map((p) => [p.id, p])),
     [profiles]
@@ -135,10 +124,7 @@ export function DataProvider({ children }) {
         profileMap,
         dataLoading, dataReady,
         addExpense, deleteExpense,
-        refreshData: () => {
-          fetchedForIdRef.current = null; // allow a manual re-fetch
-          fetchAll(user?.id);
-        },
+        refreshData: () => { hasFetchedRef.current = false; fetchAll(); },
         toasts, addToast, removeToast,
       }}
     >

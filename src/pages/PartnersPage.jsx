@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useData } from '../contexts/DataContext';
-import { useAuth } from '../contexts/AuthContext';
 import { format } from 'date-fns';
 import { Users, Crown, User } from 'lucide-react';
 
@@ -14,7 +13,6 @@ function formatDate(dateStr) {
 }
 
 export default function PartnersPage() {
-  const { user } = useAuth();
   const { profiles, expenses, dataLoading } = useData();
 
   const partners = useMemo(() => {
@@ -59,12 +57,10 @@ export default function PartnersPage() {
           </div>
         ) : (
           partners.map((partner) => {
-            const isMe      = partner.id === user?.id;
             const isFounder = partner.role === 'founder';
             return (
               <div key={partner.id} id={`partner-profile-${partner.id}`}
-                className={`partner-profile-card ${isMe ? 'partner-profile-card--me' : ''}`}>
-                {isMe && <div className="partner-you-badge">You</div>}
+                className="partner-profile-card">
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
                   <div className={`avatar avatar-xl ${isFounder ? 'avatar-founder' : ''}`}>
