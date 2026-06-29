@@ -8,7 +8,7 @@ const CATEGORY_COLORS = {
   Shirts: '#3b82f6',
   Pants: '#22c55e',
   Hoodies: '#a855f7',
-  Accessories: '#f59e0b',
+  Accessories: '#f59e0bff',
 };
 
 const BADGE_CLASS = {
@@ -32,9 +32,9 @@ export default function OverviewPage() {
   const { profiles, orders, expenses, profileMap, dataLoading } = useData();
 
   const metrics = useMemo(() => {
-    const totalRevenue  = orders.reduce((s, o) => s + (o.revenue  || 0), 0);
-    const unitsSold     = orders.reduce((s, o) => s + (o.quantity || 0), 0);
-    const totalExpenses = expenses.reduce((s, e) => s + (e.amount  || 0), 0);
+    const totalRevenue = orders.reduce((s, o) => s + (o.revenue || 0), 0);
+    const unitsSold = orders.reduce((s, o) => s + (o.quantity || 0), 0);
+    const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0);
     return { totalRevenue, unitsSold, totalExpenses, netBalance: totalRevenue - totalExpenses };
   }, [orders, expenses]);
 
@@ -43,8 +43,8 @@ export default function OverviewPage() {
     orders.forEach((o) => {
       const cat = o.products?.category || 'Other';
       if (!catMap[cat]) catMap[cat] = { units: 0, revenue: 0 };
-      catMap[cat].units   += o.quantity || 0;
-      catMap[cat].revenue += o.revenue  || 0;
+      catMap[cat].units += o.quantity || 0;
+      catMap[cat].revenue += o.revenue || 0;
     });
     const ORDER = ['Shirts', 'Pants', 'Hoodies', 'Accessories'];
     return Object.entries(catMap)
