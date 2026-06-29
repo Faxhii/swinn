@@ -7,7 +7,7 @@ const CATEGORIES = ['Marketing', 'Production', 'Logistics', 'Equipment', 'Other'
 
 // The 4 partners whose money can be tracked.
 // Names must LOOSELY match the name stored in their Supabase profile.
-const PARTNER_NAMES = ['Fadhi', 'Hisham', 'Sinan SV', 'Mohammed'];
+const PARTNER_NAMES = ['Fadhi', 'Hisham', 'Sinan SV', 'Mohammed', 'Annan'];
 
 const BADGE_CLASS = {
   Marketing:  'badge badge-marketing',
