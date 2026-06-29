@@ -26,20 +26,6 @@ function formatDate(dateStr) {
   try { return format(new Date(dateStr), 'dd MMM yyyy'); } catch { return dateStr; }
 }
 
-/**
- * Match a display name (e.g. "Sinan SV") to a profile in Supabase.
- * Tries exact match first, then partial/contains match — case-insensitive.
- */
-function matchProfile(profiles, displayName) {
-  const lower = displayName.toLowerCase();
-  // 1. Exact match
-  let found = profiles.find((p) => p.name?.toLowerCase() === lower);
-  // 2. Profile name contains the display name
-  if (!found) found = profiles.find((p) => p.name?.toLowerCase().includes(lower));
-  // 3. Display name contains the profile name
-  if (!found) found = profiles.find((p) => lower.includes(p.name?.toLowerCase() || ''));
-  return found || null;
-}
 
 export default function ExpensesPage() {
   const { expenses, profiles, profileMap, dataLoading, addExpense, deleteExpense } = useData();
@@ -88,17 +74,10 @@ export default function ExpensesPage() {
     if (!form.date)             { setFormError('Select a date.');        return; }
     if (!form.note.trim())      { setFormError('Please add a note.');    return; }
 
-    // Match the selected partner name → their Supabase profile ID
-    const matchedProfile = matchProfile(profiles, form.partner);
-    if (!matchedProfile) {
-      setFormError(`No profile found for "${form.partner}". Make sure they are registered in the admin dashboard.`);
-      return;
-    }
-
     setSubmitting(true);
     try {
       await addExpense({
-        partner_id: matchedProfile.id,
+        partner_id: form.partner, // Now saving the text name directly!
         amount,
         category: form.category,
         note: form.note.trim(),
@@ -156,7 +135,7 @@ export default function ExpensesPage() {
         <select id="filter-partner" className="form-select exp-filter" value={filterPartner}
           onChange={(e) => setFilterPartner(e.target.value)}>
           <option value="">All Partners</option>
-          {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          {PARTNER_NAMES.map((name) => <option key={name} value={name}>{name}</option>)}
         </select>
 
         <select id="filter-category" className="form-select exp-filter" value={filterCategory}
@@ -202,13 +181,17 @@ export default function ExpensesPage() {
               </thead>
               <tbody>
                 {filtered.map((expense, idx) => {
+                  // Fallback to profileMap for older expenses that have UUIDs, otherwise use text directly
                   const p = profileMap[expense.partner_id];
+                  const displayName = p?.name || expense.partner_id;
+                  const initials = p?.avatar_initials || displayName.charAt(0).toUpperCase();
+
                   return (
                     <tr key={expense.id} id={`expense-row-${idx}`}>
                       <td>
                         <div className="table-partner">
-                          <div className="avatar avatar-sm">{p?.avatar_initials || '?'}</div>
-                          <span>{p?.name || 'Unknown'}</span>
+                          <div className="avatar avatar-sm">{initials}</div>
+                          <span>{displayName}</span>
                         </div>
                       </td>
                       <td><strong>₹{formatINR(expense.amount)}</strong></td>
@@ -234,12 +217,15 @@ export default function ExpensesPage() {
           <div className="exp-cards-mobile">
             {filtered.map((expense) => {
               const p = profileMap[expense.partner_id];
+              const displayName = p?.name || expense.partner_id;
+              const initials = p?.avatar_initials || displayName.charAt(0).toUpperCase();
+
               return (
                 <div key={expense.id} className="exp-card">
                   <div className="exp-card-top">
                     <div className="table-partner">
-                      <div className="avatar avatar-sm">{p?.avatar_initials || '?'}</div>
-                      <span style={{ fontWeight: 600, fontSize: 14 }}>{p?.name || 'Unknown'}</span>
+                      <div className="avatar avatar-sm">{initials}</div>
+                      <span style={{ fontWeight: 600, fontSize: 14 }}>{displayName}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <strong style={{ fontSize: 16 }}>₹{formatINR(expense.amount)}</strong>

@@ -74,7 +74,7 @@ export function DataProvider({ children }) {
             return [incoming, ...prev];
           });
           // Show toast for all new expenses
-          const name = profilesRef.current.find((p) => p.id === incoming.partner_id)?.name || 'A partner';
+          const name = profilesRef.current.find((p) => p.id === incoming.partner_id)?.name || incoming.partner_id;
           const amt  = Number(incoming.amount).toLocaleString('en-IN');
           addToast(`${name} added a ₹${amt} ${incoming.category} expense`, 'expense');
         }
