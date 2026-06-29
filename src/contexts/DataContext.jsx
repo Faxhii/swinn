@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
@@ -121,7 +121,12 @@ export function DataProvider({ children }) {
     }
   }
 
-  const profileMap = Object.fromEntries(profiles.map((p) => [p.id, p]));
+  // useMemo prevents profileMap from being a new object reference on every render
+  // (e.g. when toasts update), which was causing all consumer pages to re-render.
+  const profileMap = useMemo(
+    () => Object.fromEntries(profiles.map((p) => [p.id, p])),
+    [profiles]
+  );
 
   return (
     <DataContext.Provider

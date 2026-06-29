@@ -17,6 +17,10 @@ export function AuthProvider({ children }) {
     // Using both getSession + onAuthStateChange was the cause of the double-fetch loop.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // TOKEN_REFRESHED fires silently in the background — the user hasn't
+        // changed, so skip it entirely to avoid a spurious re-render loop on mobile.
+        if (event === 'TOKEN_REFRESHED') return;
+
         const incomingUser = session?.user ?? null;
         setUser(incomingUser);
 
